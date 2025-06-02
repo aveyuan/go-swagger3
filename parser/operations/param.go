@@ -29,15 +29,19 @@ func (p *parser) parseParamComment(pkgPath, pkgName string, operation *oas.Opera
 
 	goType := getType(re, matches)
 
-	// `file`, `form`
-	appendRequestBody(operation, parameterObject, goType)
+	switch parameterObject.In {
+	// file, form
+	case "form", "file":
+		appendRequestBody(operation, parameterObject, goType)
+		return nil
+	// body
+	case "body":
+		return p.parseRequestBody(pkgPath, pkgName, operation, parameterObject, goType, matches)
 
-	// `path`, `query`, `header`, `cookie`
-	if parameterObject.In != "body" {
+	// path, query, header, cookie
+	default:
 		return p.appendQueryParam(pkgPath, pkgName, operation, parameterObject, goType)
 	}
-
-	return p.parseRequestBody(pkgPath, pkgName, operation, parameterObject, goType, matches)
 }
 
 func (p *parser) parseRequestBody(pkgPath string, pkgName string, operation *oas.OperationObject, parameterObject oas.ParameterObject, goType string, matches []string) error {
