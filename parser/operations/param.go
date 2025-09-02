@@ -96,10 +96,46 @@ func (p *parser) appendQueryParam(pkgPath string, pkgName string, operation *oas
 		p.appendEnumParamRef(goType, parameterObject, operation)
 		return nil
 	}
-	if strings.Contains(goType, "model.") {
-		return p.appendModelSchemaRef(pkgPath, pkgName, operation, parameterObject, goType)
+	if parameterObject.Name == "." {
+		schema, err := p.ParseSchemaObject(pkgPath, pkgName, goType)
+		if err != nil {
+			return err
+		}
+		if schema.Properties == nil {
+			return fmt.Errorf("NilSchemaProperties : parseHeaders can not parse Header schema %s", "")
+		}
+		for _, key := range schema.Properties.Keys() {
+
+			prop, ok := schema.Properties.Get(key)
+			if !ok {
+				continue
+			}
+			propObject, ok := prop.(*oas.SchemaObject)
+			if !ok {
+				continue
+			}
+
+			requiredFunc := func() bool {
+
+				return len(propObject.Required) > 0
+			}
+
+			temp := &oas.ParameterObject{
+				Name:        key,
+				In:          parameterObject.In,
+				Description: propObject.Description,
+				Required:    requiredFunc(),
+				Example:     propObject.Example,
+				Schema:      propObject,
+				Ref:         propObject.Ref,
+			}
+
+			p.appendGoTypeParams(*temp, propObject.Type, operation)
+		}
+		return nil
 	}
-	return nil
+
+	return p.appendModelSchemaRef(pkgPath, pkgName, operation, parameterObject, goType)
 }
 
 func (p *parser) appendTimeParam(pkgPath string, pkgName string, operation *oas.OperationObject, parameterObject oas.ParameterObject, goType string) (err error) {

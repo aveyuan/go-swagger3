@@ -247,6 +247,11 @@ astFieldsLoop:
 			if tag := astFieldTag.Get("json"); tag != "" {
 				tagText = tag
 			}
+
+			if tag := astFieldTag.Get("form"); tag != "" {
+				tagText = tag
+			}
+
 			tagValues = strings.Split(tagText, ",")
 			isRequired := false
 			for _, v := range tagValues {
