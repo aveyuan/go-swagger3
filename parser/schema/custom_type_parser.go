@@ -562,6 +562,14 @@ func (p *parser) addDescription(astFieldTag reflect.StructTag, fieldSchema *Sche
 		fieldSchema.Description = dc
 		return
 	}
+	// 查询是否存在gorm tag
+	if gormTag := astFieldTag.Get("gorm"); gormTag != "" {
+		if strings.Contains(gormTag, "comment") {
+			comment := strings.Split(gormTag, "comment:")[1]
+			fieldSchema.Description = strings.TrimSpace(comment)
+		}
+		return
+	}
 }
 
 func (p *parser) addRequiredField(astFieldTag reflect.StructTag, isRequired bool, structSchema *SchemaObject, name string) {
