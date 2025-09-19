@@ -555,12 +555,33 @@ func (p *parser) addReference(astFieldTag reflect.StructTag, fieldSchema *Schema
 func (p *parser) addDescription(astFieldTag reflect.StructTag, fieldSchema *SchemaObject) {
 	if desc := astFieldTag.Get("description"); desc != "" {
 		fieldSchema.Description = desc
+		return
+	}
+	// 查询是否存在DC
+	if dc := astFieldTag.Get("dc"); dc != "" {
+		fieldSchema.Description = dc
+		return
 	}
 }
 
 func (p *parser) addRequiredField(astFieldTag reflect.StructTag, isRequired bool, structSchema *SchemaObject, name string) {
 	if _, ok := astFieldTag.Lookup("required"); ok || isRequired {
 		structSchema.Required = append(structSchema.Required, name)
+		return
+	}
+	// 查询是否存在binding tag
+	if bindingTag := astFieldTag.Get("binding"); bindingTag != "" {
+		if strings.Contains(bindingTag, "required") {
+			structSchema.Required = append(structSchema.Required, name)
+		}
+		return
+	}
+	// 查询是否存在validate tag
+	if validateTag := astFieldTag.Get("validate"); validateTag != "" {
+		if strings.Contains(validateTag, "required") {
+			structSchema.Required = append(structSchema.Required, name)
+		}
+		return
 	}
 }
 
