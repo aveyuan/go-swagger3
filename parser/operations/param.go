@@ -135,7 +135,7 @@ func (p *parser) appendQueryParam(pkgPath string, pkgName string, operation *oas
 		return nil
 	}
 
-	return p.appendModelSchemaRef(pkgPath, pkgName, operation, parameterObject, goType)
+	return nil
 }
 
 func (p *parser) appendTimeParam(pkgPath string, pkgName string, operation *oas.OperationObject, parameterObject oas.ParameterObject, goType string) (err error) {
