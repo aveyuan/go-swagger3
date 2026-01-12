@@ -38,6 +38,7 @@ type Flags struct {
 	RunInDebugMode   bool
 	RunInStrictMode  bool
 	SchemaWithoutPkg bool
+	FilterTag        string
 }
 
 type Pkg struct {

@@ -107,7 +107,7 @@ func (w *fileWriter) Write(openApiObject oas.OpenAPIObject, path string, generat
 	if !schemaWithoutPkg {
 		filterSchemaWithoutPkg(openApiObject)
 	}
-	filterPathsByTag(&openApiObject, filterTag)
+	// No need to filter paths here anymore - filtering is done during parsing phase
 	log.Info("Writing to open api object file ...")
 	fd, err := os.Create(path)
 	if err != nil {

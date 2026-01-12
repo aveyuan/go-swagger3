@@ -25,11 +25,11 @@ type parser struct {
 	model.Utils
 }
 
-func NewParser(modulePath, mainFilePath, handlerPath string, debug, strict, schemaWithoutPkg bool) *parser {
+func NewParser(modulePath, mainFilePath, handlerPath string, debug, strict, schemaWithoutPkg bool, filterTag string) *parser {
 	return &parser{
 		Utils: model.Utils{
 			Path:        getPaths(modulePath, mainFilePath, handlerPath),
-			Flags:       geFlags(debug, strict, schemaWithoutPkg),
+			Flags:       geFlags(debug, strict, schemaWithoutPkg, filterTag),
 			PkgAndSpecs: initPkgAndSpecs(),
 		},
 		OpenAPI: initOpenApiObject(),
@@ -91,11 +91,12 @@ func initOpenApiObject() *OpenAPIObject {
 	}
 }
 
-func geFlags(debug bool, strict bool, schemaWithoutPkg bool) model.Flags {
+func geFlags(debug bool, strict bool, schemaWithoutPkg bool, filterTag string) model.Flags {
 	return model.Flags{
 		RunInDebugMode:   debug,
 		RunInStrictMode:  strict,
 		SchemaWithoutPkg: schemaWithoutPkg,
+		FilterTag:        filterTag,
 	}
 }
 
