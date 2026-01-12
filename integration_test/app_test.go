@@ -66,5 +66,5 @@ func createSpecFile(generateYaml bool, schemaWithoutPkg bool) error {
 	}
 
 	fw := writer.NewFileWriter()
-	return fw.Write(openApiObject, "test_data/spec/actual.json", generateYaml, schemaWithoutPkg)
+	return fw.Write(openApiObject, "test_data/spec/actual.json", generateYaml, schemaWithoutPkg, "")
 }

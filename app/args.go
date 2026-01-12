@@ -17,6 +17,7 @@ type args struct {
 	strict           bool
 	schemaWithoutPkg bool
 	generateYaml     bool
+	filterTag        string
 }
 
 func LoadArgs(c *cli.Context) *args {
@@ -30,6 +31,7 @@ func LoadArgs(c *cli.Context) *args {
 		strict:           c.GlobalBool("strict"),
 		schemaWithoutPkg: c.GlobalBool("schema-without-pkg"),
 		generateYaml:     c.GlobalBool("generate-yaml"),
+		filterTag:        c.GlobalString("tag"),
 	}
 	if appArgs.generateYaml && strings.HasSuffix(appArgs.output, ".json") {
 		appArgs.output = strings.TrimSuffix(appArgs.output, ".json") + ".yml"
@@ -74,5 +76,10 @@ var flags = []cli.Flag{
 	cli.BoolFlag{
 		Name:  "generate-yaml",
 		Usage: "generate yaml spec if true",
+	},
+	cli.StringFlag{
+		Name:  "tag",
+		Value: "",
+		Usage: "filter APIs by tag, only generate documentation for APIs with this tag (e.g., v1.3.5)",
 	},
 }

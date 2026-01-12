@@ -20,3 +20,4 @@ go-swagger3
 
 # vendor
 vendor/
+.claude
