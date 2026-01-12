@@ -55,6 +55,7 @@ func createSpecFile(generateYaml bool, schemaWithoutPkg bool) error {
 		false,
 		false,
 		schemaWithoutPkg,
+		"",
 	).Init()
 
 	if err != nil {
