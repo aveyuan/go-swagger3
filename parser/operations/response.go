@@ -11,6 +11,44 @@ import (
 	"github.com/parvez3019/go-swagger3/parser/utils"
 )
 
+func cloneSchemaObject(src *oas.SchemaObject) *oas.SchemaObject {
+	if src == nil {
+		return nil
+	}
+
+	dst := *src
+
+	if src.Required != nil {
+		dst.Required = append([]string(nil), src.Required...)
+	}
+	if src.DisabledFieldNames != nil {
+		dst.DisabledFieldNames = make(map[string]struct{}, len(src.DisabledFieldNames))
+		for k, v := range src.DisabledFieldNames {
+			dst.DisabledFieldNames[k] = v
+		}
+	}
+	if src.Items != nil {
+		dst.Items = cloneSchemaObject(src.Items)
+	}
+	if src.Properties != nil {
+		props := orderedmap.New()
+		for _, key := range src.Properties.Keys() {
+			v, ok := src.Properties.Get(key)
+			if !ok {
+				continue
+			}
+			if child, ok := v.(*oas.SchemaObject); ok {
+				props.Set(key, cloneSchemaObject(child))
+			} else {
+				props.Set(key, v)
+			}
+		}
+		dst.Properties = props
+	}
+
+	return &dst
+}
+
 func (p *parser) parseResponseComment(pkgPath, pkgName string, operation *oas.OperationObject, comment string) error {
 	// {status}  {jsonType}  {goType}     {description}
 	// 201       object      models.User  "User Model"
@@ -103,6 +141,10 @@ func (p *parser) complexResponseObject(pkgPath, pkgName, typ string, responseObj
 		if containerSchema == nil {
 			containerSchema = &oas.SchemaObject{Type: "object", Properties: orderedmap.New()}
 		}
+
+		// IMPORTANT: ParseSchemaObject may return a cached schema pointer (e.g. DataRes).
+		// Mutating it would leak changes across endpoints. Clone before overriding mapped fields.
+		containerSchema = cloneSchemaObject(containerSchema)
 		if containerSchema.Properties == nil {
 			containerSchema.Properties = orderedmap.New()
 		}

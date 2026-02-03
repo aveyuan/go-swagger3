@@ -28,6 +28,11 @@ func (p *parser) parseCustomTypeSchemaObject(pkgPath string, pkgName string, typ
 		}
 		schemaObject.PkgName = pkgName
 		schemaObject.ID = utils.GenSchemaObjectID(pkgName, typeName, p.SchemaWithoutPkg)
+		if p.SchemaWithoutPkg {
+			if existSchema, ok := p.KnownIDSchema[schemaObject.ID]; ok && existSchema != nil && existSchema.PkgName != pkgName {
+				schemaObject.ID = utils.GenSchemaObjectID(pkgName, typeName, false)
+			}
+		}
 		p.KnownIDSchema[schemaObject.ID] = &schemaObject
 	} else {
 		guessPkgName := strings.Join(typeNameParts[:len(typeNameParts)-1], "/")
@@ -75,6 +80,11 @@ func (p *parser) parseCustomTypeSchemaObject(pkgPath string, pkgName string, typ
 
 			schemaObject.PkgName = guessPkgName
 			schemaObject.ID = utils.GenSchemaObjectID(guessPkgName, guessTypeName, p.SchemaWithoutPkg)
+			if p.SchemaWithoutPkg {
+				if existSchema, ok := p.KnownIDSchema[schemaObject.ID]; ok && existSchema != nil && existSchema.PkgName != guessPkgName {
+					schemaObject.ID = utils.GenSchemaObjectID(guessPkgName, guessTypeName, false)
+				}
+			}
 			p.KnownIDSchema[schemaObject.ID] = &schemaObject
 		}
 		pkgPath, pkgName = guessPkgPath, guessPkgName
