@@ -182,8 +182,8 @@ type ResponseObject struct {
 }
 
 type HeaderObject struct {
-	Description string `json:"description,omitempty"`
-	Type        string `json:"type,omitempty"`
+	Description string        `json:"description,omitempty"`
+	Schema      *SchemaObject `json:"schema,omitempty"`
 
 	// Ref is used when HeaderObject is as a ReferenceObject
 	Ref string `json:"$ref,omitempty"`

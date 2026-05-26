@@ -100,6 +100,62 @@ func (p *parser) parseResponseComment(pkgPath, pkgName string, operation *oas.Op
 }
 
 var genericPattern = regexp.MustCompile(`\{([^}]+)\}`)
+func (p *parser) parseResponseHeaderComment(operation *oas.OperationObject, comment string) error {
+	// status code e.g. 200
+	// header name e.g. Set-Cookie
+	// type e.g. string
+	// description e.g. JWT cookie
+	// example (optional) e.g. accessToken=eyJ...
+	re := regexp.MustCompile(`(\d+)\s+([\w-]+)\s+(\w+)\s+"([^"]*)"(?:\s+"([^"]*)")?`)
+	matches := re.FindStringSubmatch(comment)
+
+	// minimum required status + headerName + type + description
+	if len(matches) < 5 {
+		return fmt.Errorf("parseResponseHeaderComment can not parse comment \"%s\"", comment)
+	}
+
+	status := matches[1]
+	statusInt, err := strconv.Atoi(status)
+	if err != nil {
+		return fmt.Errorf("parseResponseHeaderComment: http status must be int, but got %s", status)
+	}
+	if !utils.IsValidHTTPStatusCode(statusInt) {
+		return fmt.Errorf("parseResponseHeaderComment: invalid http status code %s", status)
+	}
+
+	headerName := matches[2]
+	headerType := matches[3]
+	description := matches[4]
+	example := matches[5] // empty string if no match
+
+	// reusing ResponseObject so we don’t nuke the parsed content
+	responseObject, exists := operation.Responses[status]
+	if !exists {
+		responseObject = &oas.ResponseObject{
+			Content: map[string]*oas.MediaTypeObject{},
+		}
+		operation.Responses[status] = responseObject
+	}
+
+	// only init the map when we actually need i
+	if responseObject.Headers == nil {
+		responseObject.Headers = map[string]*oas.HeaderObject{}
+	}
+
+	schema := &oas.SchemaObject{
+		Type: headerType,
+	}
+	if example != "" {
+		schema.Example = example
+	}
+
+	responseObject.Headers[headerName] = &oas.HeaderObject{
+		Description: description,
+		Schema:      schema,
+	}
+
+	return nil
+}
 
 // function to parse cases of jsonType in case "object", "array", "{object}", "{array}":
 func (p *parser) complexResponseObject(pkgPath, pkgName, typ string, responseObject *oas.ResponseObject) error {

@@ -120,3 +120,129 @@ func TestParseParamComment_InvalidComment(t *testing.T) {
 		t.Error("Expected error for invalid comment format, but got none")
 	}
 }
+
+func Test_ParseResponseHeader(t *testing.T) {
+	tests := []struct {
+		name             string
+		comment          string
+		existingResponse *oas.ResponseObject
+
+		wantErr bool
+		errMsg  string
+
+		expectedStatus string
+		expectedHeader *oas.HeaderObject
+	}{
+		{
+			name:           "Should parse response header with example",
+			comment:        `200 Set-Cookie string "JWT cookie" "accessToken=eyJhbGciOi...; Path=/; HttpOnly; Secure; SameSite=Lax"`,
+			wantErr:        false,
+			expectedStatus: "200",
+			expectedHeader: &oas.HeaderObject{
+				Description: "JWT cookie",
+				Schema: &oas.SchemaObject{
+					Type:    "string",
+					Example: "accessToken=eyJhbGciOi...; Path=/; HttpOnly; Secure; SameSite=Lax",
+				},
+			},
+		},
+		{
+			name:           "Should parse response header without example",
+			comment:        `200 Set-Cookie string "JWT cookie"`,
+			wantErr:        false,
+			expectedStatus: "200",
+			expectedHeader: &oas.HeaderObject{
+				Description: "JWT cookie",
+				Schema: &oas.SchemaObject{
+					Type: "string",
+				},
+			},
+		},
+		{
+			name:           "Should create ResponseObject if it does not exist yet",
+			comment:        `201 X-Request-Id string "Request identifier"`,
+			wantErr:        false,
+			expectedStatus: "201",
+			expectedHeader: &oas.HeaderObject{
+				Description: "Request identifier",
+				Schema: &oas.SchemaObject{
+					Type: "string",
+				},
+			},
+		},
+		{
+			name:    "Should attach header to existing ResponseObject without overwriting content",
+			comment: `200 Set-Cookie string "JWT cookie"`,
+			existingResponse: &oas.ResponseObject{
+				Description: "Success",
+				Content: map[string]*oas.MediaTypeObject{
+					oas.ContentTypeJson: {},
+				},
+			},
+			wantErr:        false,
+			expectedStatus: "200",
+			expectedHeader: &oas.HeaderObject{
+				Description: "JWT cookie",
+				Schema: &oas.SchemaObject{
+					Type: "string",
+				},
+			},
+		},
+		{
+			name:    "Should return error when status is not an integer",
+			comment: `abc Set-Cookie string "JWT cookie"`,
+			wantErr: true,
+			errMsg:  `parseResponseHeaderComment can not parse comment "abc Set-Cookie string "JWT cookie""`,
+		},
+		{
+			name:    "Should return error when status code is invalid",
+			comment: `999 Set-Cookie string "JWT cookie"`,
+			wantErr: true,
+			errMsg:  "parseResponseHeaderComment: invalid http status code 999",
+		},
+		{
+			name:    "Should return error when comment format is invalid",
+			comment: `200 Set-Cookie string`,
+			wantErr: true,
+			errMsg:  `parseResponseHeaderComment can not parse comment "200 Set-Cookie string"`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			p := &parser{}
+
+			operation := &oas.OperationObject{
+				Responses: map[string]*oas.ResponseObject{},
+			}
+
+			if test.existingResponse != nil {
+				operation.Responses[test.expectedStatus] = test.existingResponse
+			}
+
+			err := p.parseResponseHeaderComment(operation, test.comment)
+
+			if test.wantErr {
+				assert.EqualError(t, err, test.errMsg)
+				return
+			}
+
+			assert.NoError(t, err)
+
+			responseObj, exists := operation.Responses[test.expectedStatus]
+			assert.True(t, exists, "ResponseObject for status %s should exist", test.expectedStatus)
+
+			assert.NotNil(t, responseObj.Headers)
+
+			if test.existingResponse != nil {
+				assert.Equal(t, test.existingResponse.Content, responseObj.Content,
+					"existing Content should not be overwritten")
+			}
+
+			for headerName, headerObj := range responseObj.Headers {
+				_ = headerName
+				assert.Equal(t, test.expectedHeader, headerObj)
+			}
+		})
+	}
+}

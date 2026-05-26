@@ -18,6 +18,7 @@ Generate [OpenAPI Specification](https://swagger.io/specification) v3 file with 
     - [Parameter](#parameter)
     - [Header](#header)
     - [Header Parameters](#header-parameters)
+    - [Response Header](#response-header)
     - [Response](#response)
     - [Resource & Tag](#resource--tag)
     - [Route](#route)
@@ -195,6 +196,62 @@ type Request struct {
 - {goType}: The type in go code. This will be ignored when {in} is `file`.
 - Parses parameters from the type and keep it up component section for reference
 
+#### Response Header
+
+```
+@ResponseHeader  {status}  {headerName}  {type}    "{description}"                                                    "{example}"
+@ResponseHeader  200       Set-Cookie    string    "JWT token cookie"                                                 "accessToken=bzRslFay1i...; Path=/; HttpOnly; Secure; SameSite=Lax"
+```
+
+- {status}: The HTTP status code of the response this header belongs to.
+- {headerName}: The name of the response header (e.g. `Set-Cookie`, `X-Request-Id`).
+- {type}: The primitive type of the header value. Supported values: `string`, `integer`, `boolean`, `number`.
+- {description}: The description of the header. Must be quoted.
+- {example}: **Optional** example value for the header. Must be quoted.
+
+The `@ResponseHeader` annotation can be placed before or after the corresponding `@Success`/`@Failure` annotation — if the `ResponseObject` for the given status does not exist yet, it will be created automatically.
+
+Multiple headers for the same status are supported:
+
+``` go
+// @Success      200        object        TokenResponse   "Login successful"
+// @ResponseHeader  200  Set-Cookie    string  "Access token cookie"   "accessToken=bzRslFay1i...; Path=/; HttpOnly; Secure; SameSite=Lax"
+// @ResponseHeader  200  X-Request-Id  string  "Unique request identifier"
+func Login() {
+  // ...
+}
+```
+
+This produces the following OpenAPI output:
+
+``` json
+"200": {
+  "description": "Login successful",
+  "headers": {
+    "Set-Cookie": {
+      "description": "Access token cookie",
+      "schema": {
+        "type": "string",
+        "example": "accessToken=bzRslFay1i...; Path=/; HttpOnly; Secure; SameSite=Lax"
+      }
+    },
+    "X-Request-Id": {
+      "description": "Unique request identifier",
+      "schema": {
+        "type": "string"
+      }
+    }
+  },
+  "content": {
+    "application/json": {
+      "schema": {
+        "$ref": "#/components/schemas/TokenResponse"
+      }
+    }
+  }
+}
+```
+
 #### Response
 ``` json
 @Success  {status}  {jsonType}  {goType}       {description}
@@ -347,3 +404,7 @@ the `@SecurityScope [schema-name] [scope-code] [scope-description]` comment.
 - [yvasiyarov/swagger](https://github.com/yvasiyarov/swagger)
 - [uudashr/go-module](https://github.com/uudashr/go-module)
 - [mikunalpha/goas](https://github.com/mikunalpha/goas)
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/image?repos=parvez3019/go-swagger3&type=date&legend=top-left)](https://www.star-history.com/?repos=parvez3019%2Fgo-swagger3&type=date&legend=top-left)
