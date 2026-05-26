@@ -116,7 +116,7 @@ func (w *fileWriter) Write(openApiObject oas.OpenAPIObject, path string, generat
 	defer fd.Close()
 
 	if generateYAML {
-		output, err := json.MarshalIndent(openApiObject, "", "  ")
+		output, err := json.MarshalIndent(openApiObject, "", "\t")
 		if err != nil {
 			return err
 		}
@@ -128,6 +128,6 @@ func (w *fileWriter) Write(openApiObject oas.OpenAPIObject, path string, generat
 		return err
 	}
 	encoder := json.NewEncoder(fd)
-	encoder.SetIndent("", "  ")
+	encoder.SetIndent("", "\t")
 	return encoder.Encode(openApiObject)
 }
