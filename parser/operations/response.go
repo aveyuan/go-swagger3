@@ -57,16 +57,13 @@ func (p *parser) parseResponseComment(pkgPath, pkgName string, operation *oas.Op
 	// 204 "User Model"
 	// for cases of simple types
 	// 200 {string} string "..."
-	// re := regexp.MustCompile(`(?P<status>[\d]+)[\s]*(?P<jsonType>[\w\{\}]+)?[\s]+(?P<goType>[\w\-\.\/\[\]]+)?[^"]*(?P<description>.*)?`)
-	re := regexp.MustCompile(`(?P<status>[\d]+)[\s]*(?P<jsonType>[\w\{\}]+)?[\s]+(?P<goType>[\w\-\.\/\[\]\{\}=]+)?[^"]*(?P<description>.*)?`)
-
-	matches := re.FindStringSubmatch(comment)
-	if len(matches) <= 2 {
-		return fmt.Errorf("parseResponseComment can not parse response comment \"%s\"", comment)
+	parsed, err := parseResponseFields(comment)
+	if err != nil {
+		return err
 	}
 
-	status := matches[1]
-	statusInt, err := strconv.Atoi(matches[1])
+	status := parsed.status
+	statusInt, err := strconv.Atoi(parsed.status)
 	if err != nil {
 		return fmt.Errorf("parseResponseComment: http status must be int, but got %s", status)
 	}
@@ -77,18 +74,18 @@ func (p *parser) parseResponseComment(pkgPath, pkgName string, operation *oas.Op
 	responseObject := &oas.ResponseObject{
 		Content: map[string]*oas.MediaTypeObject{},
 	}
-	responseObject.Description = strings.Trim(matches[4], "\"")
+	responseObject.Description = parsed.description
 
-	switch matches[2] {
+	switch parsed.jsonType {
 
 	case "object", "array", "{object}", "{array}":
-		err = p.complexResponseObject(pkgPath, pkgName, matches[3], responseObject)
+		err = p.complexResponseObject(pkgPath, pkgName, parsed.goType, responseObject)
 	case "{string}", "{integer}", "{boolean}", "string", "integer", "boolean":
-		err = p.simpleResponseObject(matches[2], responseObject)
+		err = p.simpleResponseObject(parsed.jsonType, responseObject)
 	case "":
 
 	default:
-		return fmt.Errorf("parseResponseComment: invalid jsonType %s", matches[2])
+		return fmt.Errorf("parseResponseComment: invalid jsonType %s", parsed.jsonType)
 	}
 
 	if err != nil {
@@ -100,6 +97,7 @@ func (p *parser) parseResponseComment(pkgPath, pkgName string, operation *oas.Op
 }
 
 var genericPattern = regexp.MustCompile(`\{([^}]+)\}`)
+
 func (p *parser) parseResponseHeaderComment(operation *oas.OperationObject, comment string) error {
 	// status code e.g. 200
 	// header name e.g. Set-Cookie
@@ -228,8 +226,7 @@ func (p *parser) complexResponseObject(pkgPath, pkgName, typ string, responseObj
 	}
 
 	// 处理数组、映射的原有逻辑（保持不变）
-	re := regexp.MustCompile(`\[\w*\]`)
-	goType := re.ReplaceAllString(containerType, "[]")
+	goType := normalizeGoType(containerType)
 	if strings.HasPrefix(goType, "map[]") {
 		schema, err := p.ParseSchemaObject(pkgPath, pkgName, goType)
 		if err != nil {

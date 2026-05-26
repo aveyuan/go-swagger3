@@ -26,7 +26,7 @@ func (p *parser) parseBasicTypeSchemaObject(pkgPath string, pkgName string, type
 }
 
 func IsMapType(typeName string) bool {
-	return strings.HasPrefix(typeName, "map[]")
+	return strings.HasPrefix(typeName, "map[]") || strings.HasPrefix(typeName, "map[")
 }
 
 func (p *parser) parseBasicGoType(schemaObject SchemaObject, typeName string) (*SchemaObject, error, bool) {
@@ -61,7 +61,7 @@ func (p *parser) parseArrayType(pkgPath string, pkgName string, typeName string,
 
 func (p *parser) parseMapType(pkgPath string, pkgName string, typeName string, schemaObject SchemaObject) (*SchemaObject, error, bool) {
 	schemaObject.Type = "object"
-	itemTypeName := typeName[5:]
+	itemTypeName := mapValueType(typeName)
 	schema, ok := p.KnownIDSchema[utils.GenSchemaObjectID(pkgName, itemTypeName, p.SchemaWithoutPkg)]
 	if ok {
 		schemaObject.Items = &SchemaObject{Ref: utils.AddSchemaRefLinkPrefix(schema.ID)}
@@ -74,4 +74,17 @@ func (p *parser) parseMapType(pkgPath string, pkgName string, typeName string, s
 	schemaObject.Properties = orderedmap.New()
 	schemaObject.Properties.Set("key", schemaProperty)
 	return &schemaObject, nil, true
+}
+
+func mapValueType(typeName string) string {
+	if strings.HasPrefix(typeName, "map[]") {
+		return typeName[5:]
+	}
+	if strings.HasPrefix(typeName, "map[") {
+		end := strings.Index(typeName, "]")
+		if end > -1 && end+1 < len(typeName) {
+			return typeName[end+1:]
+		}
+	}
+	return typeName
 }

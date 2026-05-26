@@ -2,7 +2,6 @@ package operations
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/iancoleman/orderedmap"
@@ -14,20 +13,19 @@ func (p *parser) parseParamComment(pkgPath, pkgName string, operation *oas.Opera
 	// {name}  {in}  {goType}  {required}  {description}		{example (optional)}
 	// user    body  User      true        "Info of a user."
 	// f       file  ignored   true        "Upload a file." 	"/home/arlet/go-swagger3/main.go"
-	re := regexp.MustCompile(`([-.\w]+)[\s]+([\w]+)[\s]+([\w./\[\]]+)[\s]+([\w]+)[\s]+"([^"]+)"([\s]+"([^"]+)")*`)
-	matches := re.FindStringSubmatch(comment)
-	if len(matches) != 8 && len(matches) != 6 {
-		return fmt.Errorf("parseParamComment can not parse param comment \"%s\"", comment)
+	fields, err := parseParamFields(comment)
+	if err != nil {
+		return err
 	}
 
 	parameterObject := oas.ParameterObject{}
-	appendName(&parameterObject, matches[1])
-	appendIn(&parameterObject, matches[2])
-	appendRequired(&parameterObject, matches[4])
-	appendDescription(&parameterObject, matches[5])
-	appendExample(&parameterObject, matches[7]) // 6 group is using for checking if example exist
+	appendName(&parameterObject, fields[0])
+	appendIn(&parameterObject, fields[1])
+	appendRequired(&parameterObject, fields[3])
+	appendDescription(&parameterObject, fields[4])
+	appendExample(&parameterObject, fields[5])
 
-	goType := getType(re, matches)
+	goType := normalizeGoType(fields[2])
 
 	switch parameterObject.In {
 	// file, form
@@ -36,7 +34,7 @@ func (p *parser) parseParamComment(pkgPath, pkgName string, operation *oas.Opera
 		return nil
 	// body
 	case "body":
-		return p.parseRequestBody(pkgPath, pkgName, operation, parameterObject, goType, matches)
+		return p.parseRequestBody(pkgPath, pkgName, operation, parameterObject, goType)
 
 	// path, query, header, cookie
 	default:
@@ -44,7 +42,7 @@ func (p *parser) parseParamComment(pkgPath, pkgName string, operation *oas.Opera
 	}
 }
 
-func (p *parser) parseRequestBody(pkgPath string, pkgName string, operation *oas.OperationObject, parameterObject oas.ParameterObject, goType string, matches []string) error {
+func (p *parser) parseRequestBody(pkgPath string, pkgName string, operation *oas.OperationObject, parameterObject oas.ParameterObject, goType string) error {
 	if operation.RequestBody == nil {
 		operation.RequestBody = &oas.RequestBodyObject{
 			Content:  map[string]*oas.MediaTypeObject{},
@@ -54,11 +52,11 @@ func (p *parser) parseRequestBody(pkgPath string, pkgName string, operation *oas
 	if strings.HasPrefix(goType, "[]") || strings.HasPrefix(goType, "map[]") || goType == "time.Time" {
 		return p.parseArrayMapOrTimeType(pkgPath, pkgName, operation, goType)
 	}
-	return p.parseGoBasicTypeOrStructType(pkgPath, pkgName, operation, matches)
+	return p.parseGoBasicTypeOrStructType(pkgPath, pkgName, operation, goType)
 }
 
-func (p *parser) parseGoBasicTypeOrStructType(pkgPath string, pkgName string, operation *oas.OperationObject, matches []string) error {
-	typeName, err := p.RegisterType(pkgPath, pkgName, matches[3])
+func (p *parser) parseGoBasicTypeOrStructType(pkgPath string, pkgName string, operation *oas.OperationObject, goType string) error {
+	typeName, err := p.RegisterType(pkgPath, pkgName, goType)
 	if err != nil {
 		return err
 	}
@@ -204,12 +202,6 @@ func appendRequestBody(operation *oas.OperationObject, parameterObject oas.Param
 			Description: parameterObject.Description,
 		})
 	}
-}
-
-func getType(re *regexp.Regexp, matches []string) string {
-	re = regexp.MustCompile(`\[\w*\]`)
-	goType := re.ReplaceAllString(matches[3], "[]")
-	return goType
 }
 
 func appendRequired(paramObject *oas.ParameterObject, isRequired string) {

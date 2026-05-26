@@ -94,6 +94,30 @@ func TestParseParamComment_BodyParam(t *testing.T) {
 	mockSchema.AssertExpectations(t)
 }
 
+func TestParseParamComment_MapBodyParam(t *testing.T) {
+	mockSchema := new(MockSchemaParser)
+
+	p := &parser{
+		Parser: mockSchema,
+	}
+
+	op := &oas.OperationObject{}
+	expectedSchema := &oas.SchemaObject{Type: "object"}
+
+	mockSchema.On("ParseSchemaObject", "example/pkg", "pkg", "map[]User").Return(expectedSchema, nil)
+
+	err := p.parseParamComment("example/pkg", "pkg", op, `@Param users body map[string]User true "Users by ID"`)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	if op.RequestBody == nil {
+		t.Error("Expected RequestBody to be set for body param")
+	}
+	assert.Equal(t, *expectedSchema, op.RequestBody.Content[oas.ContentTypeJson].Schema)
+	mockSchema.AssertExpectations(t)
+}
+
 func TestParseParamComment_QueryParam(t *testing.T) {
 	p := &parser{}
 	op := &oas.OperationObject{}

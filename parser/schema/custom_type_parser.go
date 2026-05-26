@@ -616,7 +616,7 @@ func (p *parser) getTypeAsString(fieldType interface{}) string {
 
 	astMapType, ok := fieldType.(*ast.MapType)
 	if ok {
-		return fmt.Sprintf("map[]%v", p.getTypeAsString(astMapType.Value))
+		return fmt.Sprintf("map[%v]%v", p.getTypeAsString(astMapType.Key), p.getTypeAsString(astMapType.Value))
 	}
 
 	_, ok = fieldType.(*ast.InterfaceType)
