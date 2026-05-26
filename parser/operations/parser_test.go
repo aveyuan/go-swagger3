@@ -8,6 +8,7 @@ import (
 	oas "github.com/aveyuan/go-swagger3/openApi3Schema"
 	"github.com/aveyuan/go-swagger3/parser/schema"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_ParseHeader(t *testing.T) {
@@ -91,6 +92,8 @@ func TestParseParamComment_BodyParam(t *testing.T) {
 	if op.RequestBody == nil {
 		t.Error("Expected RequestBody to be set for body param")
 	}
+	require.NotNil(t, op.RequestBody.Content[oas.ContentTypeJson])
+	assert.Equal(t, "User info", op.RequestBody.Content[oas.ContentTypeJson].Schema.Description)
 
 	mockSchema.AssertExpectations(t)
 }
@@ -132,6 +135,40 @@ func TestParseParamComment_QueryParam(t *testing.T) {
 	if len(op.Parameters) == 0 {
 		t.Error("Expected query param to be added to operation.Parameters")
 	}
+}
+
+func TestParseParamComment_DotQueryParam(t *testing.T) {
+	mockSchema := new(MockSchemaParser)
+
+	p := &parser{
+		Parser: mockSchema,
+	}
+
+	op := &oas.OperationObject{}
+	schemaObj := &oas.SchemaObject{
+		Type: "object",
+		Properties: func() *orderedmap.OrderedMap {
+			props := orderedmap.New()
+			props.Set("keyword", &oas.SchemaObject{Type: "string", Description: "search keyword", Example: "xmas"})
+			props.Set("page", &oas.SchemaObject{Type: "integer", Description: "page number"})
+			return props
+		}(),
+	}
+	mockSchema.On("ParseSchemaObject", "example/pkg", "pkg", "activityv2.GetChristmas2025TopReq").Return(schemaObj, nil)
+
+	comment := "@Param . query activityv2.GetChristmas2025TopReq true \"请求参数\""
+	err := p.parseParamComment("example/pkg", "pkg", op, comment)
+	require.NoError(t, err)
+
+	require.Len(t, op.Parameters, 2)
+	assert.Equal(t, "keyword", op.Parameters[0].Name)
+	assert.Equal(t, "query", op.Parameters[0].In)
+	assert.Equal(t, "search keyword", op.Parameters[0].Description)
+	assert.Equal(t, "xmas", op.Parameters[0].Example)
+	assert.Equal(t, "page", op.Parameters[1].Name)
+	assert.Equal(t, "page number", op.Parameters[1].Description)
+
+	mockSchema.AssertExpectations(t)
 }
 
 func TestParseParamComment_InvalidComment(t *testing.T) {

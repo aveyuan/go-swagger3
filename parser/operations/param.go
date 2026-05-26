@@ -50,31 +50,32 @@ func (p *parser) parseRequestBody(pkgPath string, pkgName string, operation *oas
 		}
 	}
 	if strings.HasPrefix(goType, "[]") || strings.HasPrefix(goType, "map[]") || goType == "time.Time" {
-		return p.parseArrayMapOrTimeType(pkgPath, pkgName, operation, goType)
+		return p.parseArrayMapOrTimeType(pkgPath, pkgName, operation, goType, parameterObject.Description)
 	}
-	return p.parseGoBasicTypeOrStructType(pkgPath, pkgName, operation, goType)
+	return p.parseGoBasicTypeOrStructType(pkgPath, pkgName, operation, goType, parameterObject.Description)
 }
 
-func (p *parser) parseGoBasicTypeOrStructType(pkgPath string, pkgName string, operation *oas.OperationObject, goType string) error {
+func (p *parser) parseGoBasicTypeOrStructType(pkgPath string, pkgName string, operation *oas.OperationObject, goType string, description string) error {
 	typeName, err := p.RegisterType(pkgPath, pkgName, goType)
 	if err != nil {
 		return err
 	}
 	if utils.IsBasicGoType(typeName) {
-		operation.RequestBody.Content[oas.ContentTypeJson] = &oas.MediaTypeObject{Schema: oas.SchemaObject{Type: "string"}}
+		operation.RequestBody.Content[oas.ContentTypeJson] = &oas.MediaTypeObject{Schema: oas.SchemaObject{Type: "string", Description: description}}
 		return nil
 	}
-	operation.RequestBody.Content[oas.ContentTypeJson] = &oas.MediaTypeObject{Schema: oas.SchemaObject{Ref: utils.AddSchemaRefLinkPrefix(typeName)}}
+	operation.RequestBody.Content[oas.ContentTypeJson] = &oas.MediaTypeObject{Schema: oas.SchemaObject{Ref: utils.AddSchemaRefLinkPrefix(typeName), Description: description}}
 	return nil
 }
 
-func (p *parser) parseArrayMapOrTimeType(pkgPath string, pkgName string, operation *oas.OperationObject, goType string) error {
+func (p *parser) parseArrayMapOrTimeType(pkgPath string, pkgName string, operation *oas.OperationObject, goType string, description string) error {
 	parsedSchemaObject, err := p.ParseSchemaObject(pkgPath, pkgName, goType)
 	if err != nil {
 		p.Debug("parseResponseComment cannot parse goType", goType)
 		return err
 	}
 	if parsedSchemaObject != nil {
+		parsedSchemaObject.Description = description
 		operation.RequestBody.Content[oas.ContentTypeJson] = &oas.MediaTypeObject{Schema: *parsedSchemaObject}
 	}
 	return nil
@@ -113,22 +114,22 @@ func (p *parser) appendQueryParam(pkgPath string, pkgName string, operation *oas
 				continue
 			}
 
-			requiredFunc := func() bool {
-
-				return len(propObject.Required) > 0
-			}
-
-			temp := &oas.ParameterObject{
+			temp := oas.ParameterObject{
 				Name:        key,
 				In:          parameterObject.In,
 				Description: propObject.Description,
-				Required:    requiredFunc(),
+				Required:    len(propObject.Required) > 0,
 				Example:     propObject.Example,
-				Schema:      propObject,
+				Schema:      cloneSchemaObject(propObject),
 				Ref:         propObject.Ref,
 			}
-
-			p.appendGoTypeParams(*temp, propObject.Type, operation)
+			if temp.Schema == nil {
+				temp.Schema = &oas.SchemaObject{}
+			}
+			if temp.Schema.Type == "" {
+				temp.Schema.Type = propObject.Type
+			}
+			operation.Parameters = append(operation.Parameters, temp)
 		}
 		return nil
 	}
