@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/iancoleman/orderedmap"
-	. "github.com/parvez3019/go-swagger3/openApi3Schema"
-	"github.com/parvez3019/go-swagger3/parser/utils"
+	. "github.com/aveyuan/go-swagger3/openApi3Schema"
+	"github.com/aveyuan/go-swagger3/parser/utils"
 )
 
 func (p *parser) parseCustomTypeSchemaObject(pkgPath string, pkgName string, typeName string) (*SchemaObject, error) {

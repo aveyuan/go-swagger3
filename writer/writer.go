@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/ghodss/yaml"
-	oas "github.com/parvez3019/go-swagger3/openApi3Schema"
+	oas "github.com/aveyuan/go-swagger3/openApi3Schema"
 	log "github.com/sirupsen/logrus"
 )
 

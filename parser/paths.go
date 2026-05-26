@@ -2,7 +2,7 @@ package parser
 
 import (
 	"fmt"
-	"github.com/parvez3019/go-swagger3/parser/utils"
+	"github.com/aveyuan/go-swagger3/parser/utils"
 	"os"
 	"os/user"
 	"path/filepath"

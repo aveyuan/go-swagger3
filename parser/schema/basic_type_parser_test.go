@@ -4,8 +4,8 @@ import (
 	"go/ast"
 	"testing"
 
-	. "github.com/parvez3019/go-swagger3/openApi3Schema"
-	"github.com/parvez3019/go-swagger3/parser/model"
+	. "github.com/aveyuan/go-swagger3/openApi3Schema"
+	"github.com/aveyuan/go-swagger3/parser/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

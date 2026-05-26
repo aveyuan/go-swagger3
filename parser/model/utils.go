@@ -1,8 +1,8 @@
 package model
 
 import (
-	"github.com/parvez3019/go-swagger3/logger"
-	oas "github.com/parvez3019/go-swagger3/openApi3Schema"
+	"github.com/aveyuan/go-swagger3/logger"
+	oas "github.com/aveyuan/go-swagger3/openApi3Schema"
 	"go/ast"
 )
 

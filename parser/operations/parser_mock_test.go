@@ -3,7 +3,7 @@ package operations
 import (
 	"go/ast"
 
-	"github.com/parvez3019/go-swagger3/openApi3Schema"
+	"github.com/aveyuan/go-swagger3/openApi3Schema"
 	"github.com/stretchr/testify/mock"
 )
 
