@@ -557,6 +557,15 @@ func (p *parser) addEnum(astFieldTag reflect.StructTag, fieldSchema *SchemaObjec
 
 func (p *parser) addReference(astFieldTag reflect.StructTag, fieldSchema *SchemaObject) {
 	if ref := astFieldTag.Get("$ref"); ref != "" {
+		if fieldSchema.Type == "array" {
+			if fieldSchema.Items == nil {
+				fieldSchema.Items = &SchemaObject{}
+			}
+			if fieldSchema.Items.Ref == "" {
+				fieldSchema.Items.Ref = utils.AddSchemaRefLinkPrefix(ref)
+			}
+			return
+		}
 		fieldSchema.Ref = utils.AddSchemaRefLinkPrefix(ref)
 		fieldSchema.Type = "" // remove default type in case of reference link
 	}
