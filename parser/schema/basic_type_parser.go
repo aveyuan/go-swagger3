@@ -31,6 +31,7 @@ func IsMapType(typeName string) bool {
 
 func (p *parser) parseBasicGoType(schemaObject SchemaObject, typeName string) (*SchemaObject, error, bool) {
 	schemaObject.Type = utils.GoTypesOASTypes[typeName]
+	schemaObject.Format = utils.GoTypesOASFormats[typeName]
 	return &schemaObject, nil, true
 }
 
@@ -47,16 +48,49 @@ func (p *parser) parseTimeType(schemaObject SchemaObject) (*SchemaObject, error,
 func (p *parser) parseArrayType(pkgPath string, pkgName string, typeName string, schemaObject SchemaObject, err error) (*SchemaObject, error, bool) {
 	schemaObject.Type = "array"
 	itemTypeName := typeName[2:]
-	schema, ok := p.KnownIDSchema[utils.GenSchemaObjectID(pkgName, itemTypeName, p.SchemaWithoutPkg)]
-	if ok {
-		schemaObject.Items = &SchemaObject{Ref: utils.AddSchemaRefLinkPrefix(schema.ID)}
-		return &schemaObject, nil, true
-	}
-	schemaObject.Items, err = p.ParseSchemaObject(pkgPath, pkgName, itemTypeName)
+	schemaObject.Items, err = p.parseArrayItemSchema(pkgPath, pkgName, itemTypeName)
 	if err != nil {
 		return nil, err, true
 	}
 	return &schemaObject, nil, true
+}
+
+func (p *parser) parseArrayItemSchema(pkgPath string, pkgName string, itemTypeName string) (*SchemaObject, error) {
+	if itemTypeName == "time.Time" {
+		return &SchemaObject{Type: "string", Format: "date-time"}, nil
+	}
+	if utils.IsInterfaceType(itemTypeName) {
+		return &SchemaObject{Type: "object"}, nil
+	}
+	if utils.IsGoTypeOASType(itemTypeName) {
+		return &SchemaObject{
+			Type:   utils.GoTypesOASTypes[itemTypeName],
+			Format: utils.GoTypesOASFormats[itemTypeName],
+		}, nil
+	}
+
+	schema, ok := p.KnownIDSchema[utils.GenSchemaObjectID(pkgName, itemTypeName, p.SchemaWithoutPkg)]
+	if ok && schema.ID != "" {
+		return &SchemaObject{Ref: utils.AddSchemaRefLinkPrefix(schema.ID)}, nil
+	}
+
+	typeName, err := p.RegisterType(pkgPath, pkgName, itemTypeName)
+	if err != nil {
+		return nil, err
+	}
+	if utils.IsGoTypeOASType(typeName) {
+		return &SchemaObject{
+			Type:   utils.GoTypesOASTypes[typeName],
+			Format: utils.GoTypesOASFormats[typeName],
+		}, nil
+	}
+	if utils.IsInterfaceType(typeName) {
+		return &SchemaObject{Type: "object"}, nil
+	}
+	if typeName == "" {
+		return p.ParseSchemaObject(pkgPath, pkgName, itemTypeName)
+	}
+	return &SchemaObject{Ref: utils.AddSchemaRefLinkPrefix(typeName)}, nil
 }
 
 func (p *parser) parseMapType(pkgPath string, pkgName string, typeName string, schemaObject SchemaObject) (*SchemaObject, error, bool) {

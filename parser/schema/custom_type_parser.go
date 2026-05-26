@@ -74,6 +74,16 @@ func (p *parser) parseCustomTypeSchemaObject(pkgPath string, pkgName string, typ
 			}
 			p.KnownIDSchema[schemaObject.ID] = &schemaObject
 		}
+		if schemaObject.ID == "" {
+			schemaObject.PkgName = guessPkgName
+			schemaObject.ID = utils.GenSchemaObjectID(guessPkgName, guessTypeName, p.SchemaWithoutPkg)
+			if p.SchemaWithoutPkg {
+				if existSchema, ok := p.KnownIDSchema[schemaObject.ID]; ok && existSchema != nil && existSchema.PkgName != guessPkgName {
+					schemaObject.ID = utils.GenSchemaObjectID(guessPkgName, guessTypeName, false)
+				}
+			}
+			p.KnownIDSchema[schemaObject.ID] = &schemaObject
+		}
 		pkgPath, pkgName = guessPkgPath, guessPkgName
 	}
 
@@ -98,18 +108,13 @@ func (p *parser) parseCustomTypeSchemaObject(pkgPath string, pkgName string, typ
 		}
 	} else if astArrayType, ok := typeSpec.Type.(*ast.ArrayType); ok {
 		schemaObject.Type = "array"
-		schemaObject.Items = &SchemaObject{}
 		typeAsString := p.getTypeAsString(astArrayType.Elt)
 		typeAsString = strings.TrimLeft(typeAsString, "*")
-		if !utils.IsBasicGoType(typeAsString) {
-			schemaItemsSchemeaObjectID, err := p.RegisterType(pkgPath, pkgName, typeAsString)
-			if err != nil {
-				p.Debugf("ParseSchemaObject parse array items err: %s", err.Error())
-			} else {
-				schemaObject.Items.Ref = utils.AddSchemaRefLinkPrefix(schemaItemsSchemeaObjectID)
-			}
-		} else if utils.IsGoTypeOASType(typeAsString) {
-			schemaObject.Items.Type = utils.GoTypesOASTypes[typeAsString]
+		items, err := p.parseArrayItemSchema(pkgPath, pkgName, typeAsString)
+		if err != nil {
+			p.Debugf("ParseSchemaObject parse array items err: %s", err.Error())
+		} else {
+			schemaObject.Items = items
 		}
 	} else if astMapType, ok := typeSpec.Type.(*ast.MapType); ok {
 		schemaObject.Type = "object"
