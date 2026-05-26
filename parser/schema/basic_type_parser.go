@@ -13,7 +13,7 @@ func (p *parser) parseBasicTypeSchemaObject(pkgPath string, pkgName string, type
 	// handler basic and some specific typeName
 	if strings.HasPrefix(typeName, "[]") {
 		return p.parseArrayType(pkgPath, pkgName, typeName, schemaObject, err)
-	} else if strings.HasPrefix(typeName, "map[]") {
+	} else if IsMapType(typeName) {
 		return p.parseMapType(pkgPath, pkgName, typeName, schemaObject)
 	} else if typeName == "time.Time" {
 		return p.parseTimeType(schemaObject)
@@ -23,6 +23,10 @@ func (p *parser) parseBasicTypeSchemaObject(pkgPath string, pkgName string, type
 		return p.parseBasicGoType(schemaObject, typeName)
 	}
 	return nil, nil, false
+}
+
+func IsMapType(typeName string) bool {
+	return strings.HasPrefix(typeName, "map[]")
 }
 
 func (p *parser) parseBasicGoType(schemaObject SchemaObject, typeName string) (*SchemaObject, error, bool) {

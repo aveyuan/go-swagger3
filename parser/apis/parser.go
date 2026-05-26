@@ -34,20 +34,10 @@ func NewParser(utils model.Utils, api *oas.OpenAPIObject, schemaParser schema.Pa
 // Parse parse APIs info
 func (p *parser) Parse() error {
 	log.Info("Parsing APIs ...")
-	err := p.parseImportStatements()
+	err := p.parseImportsAndTypeSpecs()
 	if err != nil {
 		return err
 	}
 
-	err = p.parseTypeSpecs()
-	if err != nil {
-		return err
-	}
-
-	err = p.parseParameters()
-	if err != nil {
-		return err
-	}
-
-	return p.parsePaths()
+	return p.parseParametersAndPaths()
 }

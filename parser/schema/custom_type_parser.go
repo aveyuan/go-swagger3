@@ -11,7 +11,6 @@ import (
 	"github.com/iancoleman/orderedmap"
 	. "github.com/parvez3019/go-swagger3/openApi3Schema"
 	"github.com/parvez3019/go-swagger3/parser/utils"
-	log "github.com/sirupsen/logrus"
 )
 
 func (p *parser) parseCustomTypeSchemaObject(pkgPath string, pkgName string, typeName string) (*SchemaObject, error) {
@@ -24,7 +23,7 @@ func (p *parser) parseCustomTypeSchemaObject(pkgPath string, pkgName string, typ
 	if len(typeNameParts) == 1 {
 		typeSpec, exist = p.getTypeSpec(pkgName, typeName)
 		if !exist {
-			log.Fatalf("Can not find definition of %s ast.TypeSpec. Current package %s", typeName, pkgName)
+			return nil, fmt.Errorf("can not find definition of %s ast.TypeSpec. Current package %s", typeName, pkgName)
 		}
 		schemaObject.PkgName = pkgName
 		schemaObject.ID = utils.GenSchemaObjectID(pkgName, typeName, p.SchemaWithoutPkg)
@@ -36,13 +35,7 @@ func (p *parser) parseCustomTypeSchemaObject(pkgPath string, pkgName string, typ
 		p.KnownIDSchema[schemaObject.ID] = &schemaObject
 	} else {
 		guessPkgName := strings.Join(typeNameParts[:len(typeNameParts)-1], "/")
-		guessPkgPath := ""
-		for i := range p.KnownPkgs {
-			if guessPkgName == p.KnownPkgs[i].Name {
-				guessPkgPath = p.KnownPkgs[i].Path
-				break
-			}
-		}
+		guessPkgPath := p.getPkgPath(guessPkgName)
 		guessTypeName := typeNameParts[len(typeNameParts)-1]
 		typeSpec, exist = p.getTypeSpec(guessPkgName, guessTypeName)
 		if !exist {
@@ -60,13 +53,7 @@ func (p *parser) parseCustomTypeSchemaObject(pkgPath string, pkgName string, typ
 			}
 			for index, currentAliasName := range aliases {
 				guessPkgName = currentAliasName
-				guessPkgPath = ""
-				for i := range p.KnownPkgs {
-					if guessPkgName == p.KnownPkgs[i].Name {
-						guessPkgPath = p.KnownPkgs[i].Path
-						break
-					}
-				}
+				guessPkgPath = p.getPkgPath(guessPkgName)
 				// p.debugf("guess %s ast.TypeSpec in package %s", guessTypeName, guessPkgName)
 				typeSpec, exist = p.getTypeSpec(guessPkgName, guessTypeName)
 				if exist {
@@ -145,6 +132,14 @@ func (p *parser) parseCustomTypeSchemaObject(pkgPath string, pkgName string, typ
 	return &schemaObject, nil
 }
 
+func (p *parser) getPkgPath(pkgName string) string {
+	pkg, ok := p.KnownNamePkg[pkgName]
+	if !ok || pkg == nil {
+		return ""
+	}
+	return pkg.Path
+}
+
 func (p *parser) getTypeSpec(pkgName, typeName string) (*ast.TypeSpec, bool) {
 	pkgTypeSpecs, exist := p.TypeSpecs[pkgName]
 	if !exist {
@@ -189,7 +184,7 @@ astFieldsLoop:
 				p.Debug(err)
 				return
 			}
-		} else if strings.HasPrefix(typeAsString, "map[]") {
+		} else if IsMapType(typeAsString) {
 			fieldSchema, err = p.ParseSchemaObject(pkgPath, pkgName, typeAsString)
 			if err != nil {
 				p.Debug(err)
@@ -316,7 +311,7 @@ astFieldsLoop:
 				p.Debug(err)
 				return
 			}
-		} else if strings.HasPrefix(typeAsString, "map[]") {
+		} else if IsMapType(typeAsString) {
 			fieldSchema, err = p.ParseSchemaObject(pkgPath, pkgName, typeAsString)
 			if err != nil {
 				p.Debug(err)

@@ -115,16 +115,19 @@ func (w *fileWriter) Write(openApiObject oas.OpenAPIObject, path string, generat
 	}
 	defer fd.Close()
 
-	output, err := json.MarshalIndent(openApiObject, "", "  ")
-	if err != nil {
-		return err
-	}
 	if generateYAML {
+		output, err := json.MarshalIndent(openApiObject, "", "  ")
+		if err != nil {
+			return err
+		}
 		output, err = yaml.JSONToYAML(output)
 		if err != nil {
 			return err
 		}
+		_, err = fd.Write(output)
+		return err
 	}
-	_, err = fd.WriteString(string(output))
-	return err
+	encoder := json.NewEncoder(fd)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(openApiObject)
 }
