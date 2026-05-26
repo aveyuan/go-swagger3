@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/iancoleman/orderedmap"
 	oas "github.com/parvez3019/go-swagger3/openApi3Schema"
 	"github.com/parvez3019/go-swagger3/parser/schema"
 	"github.com/stretchr/testify/assert"
@@ -269,4 +270,80 @@ func Test_ParseResponseHeader(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestParseResponseComment_GenericMappedSliceWithPointerAndSpaces(t *testing.T) {
+	mockSchema := new(MockSchemaParser)
+	p := &parser{Parser: mockSchema}
+	op := &oas.OperationObject{Responses: oas.ResponsesObject{}}
+
+	containerProperties := orderedmap.New()
+	containerProperties.Set("data", &oas.SchemaObject{Type: "object"})
+	containerSchema := &oas.SchemaObject{
+		Type:       "object",
+		Properties: containerProperties,
+	}
+	dataSchema := &oas.SchemaObject{
+		Type:   "array",
+		Items:  &oas.SchemaObject{Ref: "#/components/schemas/ListCampaignRuleResp"},
+		Format: "",
+	}
+
+	mockSchema.On("ParseSchemaObject", "example/pkg", "pkg", "yhttp.DataResWithPage").Return(containerSchema, nil)
+	mockSchema.On("ParseSchemaObject", "example/pkg", "pkg", "[]pricerule.ListCampaignRuleResp").Return(dataSchema, nil)
+
+	comment := `200 {object} yhttp.DataResWithPage{data= []*pricerule.ListCampaignRuleResp} "ok"`
+
+	err := p.parseResponseComment("example/pkg", "pkg", op, comment)
+	assert.NoError(t, err)
+
+	response := op.Responses["200"]
+	if assert.NotNil(t, response) {
+		data, exists := response.Content[oas.ContentTypeJson].Schema.Properties.Get("data")
+		if assert.True(t, exists) {
+			assert.Equal(t, dataSchema, data)
+		}
+	}
+	mockSchema.AssertExpectations(t)
+}
+
+func TestParseResponseComment_BasicInt32Type(t *testing.T) {
+	mockSchema := new(MockSchemaParser)
+	p := &parser{Parser: mockSchema}
+	op := &oas.OperationObject{Responses: oas.ResponsesObject{}}
+
+	mockSchema.On("RegisterType", "example/pkg", "pkg", "int32").Return("int32", nil)
+
+	err := p.parseResponseComment("example/pkg", "pkg", op, `200 {object} int32 "ok"`)
+	assert.NoError(t, err)
+
+	response := op.Responses["200"]
+	if assert.NotNil(t, response) {
+		schema := response.Content[oas.ContentTypeJson].Schema
+		assert.Equal(t, "integer", schema.Type)
+		assert.Equal(t, "int64", schema.Format)
+	}
+	mockSchema.AssertExpectations(t)
+}
+
+func TestParseResponseComment_BasicInt32ArrayType(t *testing.T) {
+	mockSchema := new(MockSchemaParser)
+	p := &parser{Parser: mockSchema}
+	op := &oas.OperationObject{Responses: oas.ResponsesObject{}}
+
+	mockSchema.On("RegisterType", "example/pkg", "pkg", "int32").Return("int32", nil)
+
+	err := p.parseResponseComment("example/pkg", "pkg", op, `200 {array} []int32 "ok"`)
+	assert.NoError(t, err)
+
+	response := op.Responses["200"]
+	if assert.NotNil(t, response) {
+		schema := response.Content[oas.ContentTypeJson].Schema
+		assert.Equal(t, "array", schema.Type)
+		if assert.NotNil(t, schema.Items) {
+			assert.Equal(t, "integer", schema.Items.Type)
+			assert.Equal(t, "int64", schema.Items.Format)
+		}
+	}
+	mockSchema.AssertExpectations(t)
 }

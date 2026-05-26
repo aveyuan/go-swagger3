@@ -11,15 +11,17 @@ func TestNormalizeGoType(t *testing.T) {
 	assert.Equal(t, "map[]User", normalizeGoType("map[string]User"))
 	assert.Equal(t, "map[]pkg.User", normalizeGoType("map[int]pkg.User"))
 	assert.Equal(t, "[]map[]pkg.User", normalizeGoType("[]map[string]pkg.User"))
+	assert.Equal(t, "[]pkg.User", normalizeGoType(" []*pkg.User "))
+	assert.Equal(t, "pkg.User", normalizeGoType("*pkg.User"))
 }
 
 func TestParseResponseFields_WithGenericMappings(t *testing.T) {
-	parsed, err := parseResponseFields(`200 {object} yhttp.DataRes{data=[]feedback.Item, total=int, extra=map[string]feedback.Meta} "ok"`)
+	parsed, err := parseResponseFields(`200 {object} yhttp.DataRes{data= []*feedback.Item, total=int32, extra=map[string]feedback.Meta} "ok"`)
 
 	require.NoError(t, err)
 	assert.Equal(t, "200", parsed.status)
 	assert.Equal(t, "{object}", parsed.jsonType)
-	assert.Equal(t, `yhttp.DataRes{data=[]feedback.Item, total=int, extra=map[]feedback.Meta}`, parsed.goType)
+	assert.Equal(t, `yhttp.DataRes{data=[]feedback.Item,total=int32,extra=map[]feedback.Meta}`, parsed.goType)
 	assert.Equal(t, "ok", parsed.description)
 }
 

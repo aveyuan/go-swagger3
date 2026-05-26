@@ -206,7 +206,7 @@ func (p *parser) complexResponseObject(pkgPath, pkgName, typ string, responseObj
 		// 2. 遍历所有需要替换的字段，逐个更新
 		for fieldName, fieldType := range fieldMappings {
 			// 解析字段对应的嵌套类型 Schema
-			fieldSchema, err := p.ParseSchemaObject(pkgPath, pkgName, fieldType)
+			fieldSchema, err := p.ParseSchemaObject(pkgPath, pkgName, normalizeGoType(fieldType))
 			if err != nil {
 				return fmt.Errorf("解析字段 %s 的类型 %s 失败: %v", fieldName, fieldType, err)
 			}
@@ -245,7 +245,10 @@ func (p *parser) complexResponseObject(pkgPath, pkgName, typ string, responseObj
 
 		var s oas.SchemaObject
 		if utils.IsBasicGoType(typeName) {
-			s = oas.SchemaObject{Type: "string"}
+			s = oas.SchemaObject{
+				Type:   utils.GoTypesOASTypes[typeName],
+				Format: utils.GoTypesOASFormats[typeName],
+			}
 		} else {
 			s = oas.SchemaObject{Ref: utils.AddSchemaRefLinkPrefix(typeName)}
 		}
@@ -265,8 +268,11 @@ func (p *parser) complexResponseObject(pkgPath, pkgName, typ string, responseObj
 		return err
 	}
 	if utils.IsBasicGoType(typeName) {
-		responseObject.Content[oas.ContentTypeText] = &oas.MediaTypeObject{
-			Schema: oas.SchemaObject{Type: "string"},
+		responseObject.Content[oas.ContentTypeJson] = &oas.MediaTypeObject{
+			Schema: oas.SchemaObject{
+				Type:   utils.GoTypesOASTypes[typeName],
+				Format: utils.GoTypesOASFormats[typeName],
+			},
 		}
 	} else if utils.IsInterfaceType(typeName) {
 		responseObject.Content[oas.ContentTypeJson] = &oas.MediaTypeObject{
@@ -286,6 +292,11 @@ func (p *parser) simpleResponseObject(jsonType string, responseObject *oas.Respo
 		formattedType = jsonType[1 : len(jsonType)-1]
 	}
 
-	responseObject.Content[oas.ContentTypeJson] = &oas.MediaTypeObject{Schema: oas.SchemaObject{Type: formattedType}}
+	schema := oas.SchemaObject{Type: formattedType}
+	if formattedType == "integer" {
+		schema.Format = "int64"
+	}
+
+	responseObject.Content[oas.ContentTypeJson] = &oas.MediaTypeObject{Schema: schema}
 	return nil
 }

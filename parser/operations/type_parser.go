@@ -16,6 +16,8 @@ type responseComment struct {
 func normalizeGoType(goType string) string {
 	goType = strings.TrimSpace(goType)
 	goType = normalizeMapTypes(goType)
+	goType = strings.ReplaceAll(goType, " ", "")
+	goType = strings.ReplaceAll(goType, "*", "")
 	if strings.HasPrefix(goType, "[]") {
 		return "[]" + normalizeGoType(goType[2:])
 	}
