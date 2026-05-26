@@ -57,16 +57,12 @@ func (p *parser) parseResponseComment(pkgPath, pkgName string, operation *oas.Op
 	// 204 "User Model"
 	// for cases of simple types
 	// 200 {string} string "..."
-	// re := regexp.MustCompile(`(?P<status>[\d]+)[\s]*(?P<jsonType>[\w\{\}]+)?[\s]+(?P<goType>[\w\-\.\/\[\]]+)?[^"]*(?P<description>.*)?`)
-	re := regexp.MustCompile(`(?P<status>[\d]+)[\s]*(?P<jsonType>[\w\{\}]+)?[\s]+(?P<goType>[\w\-\.\/\[\]\{\}=]+)?[^"]*(?P<description>.*)?`)
-
-	matches := re.FindStringSubmatch(comment)
-	if len(matches) <= 2 {
+	status, jsonType, goType, description, ok := parseResponseCommentParts(comment)
+	if !ok {
 		return fmt.Errorf("parseResponseComment can not parse response comment \"%s\"", comment)
 	}
 
-	status := matches[1]
-	statusInt, err := strconv.Atoi(matches[1])
+	statusInt, err := strconv.Atoi(status)
 	if err != nil {
 		return fmt.Errorf("parseResponseComment: http status must be int, but got %s", status)
 	}
@@ -77,18 +73,18 @@ func (p *parser) parseResponseComment(pkgPath, pkgName string, operation *oas.Op
 	responseObject := &oas.ResponseObject{
 		Content: map[string]*oas.MediaTypeObject{},
 	}
-	responseObject.Description = strings.Trim(matches[4], "\"")
+	responseObject.Description = strings.Trim(description, "\"")
 
-	switch matches[2] {
+	switch jsonType {
 
 	case "object", "array", "{object}", "{array}":
-		err = p.complexResponseObject(pkgPath, pkgName, matches[3], responseObject)
+		err = p.complexResponseObject(pkgPath, pkgName, goType, responseObject)
 	case "{string}", "{integer}", "{boolean}", "string", "integer", "boolean":
-		err = p.simpleResponseObject(matches[2], responseObject)
+		err = p.simpleResponseObject(jsonType, responseObject)
 	case "":
 
 	default:
-		return fmt.Errorf("parseResponseComment: invalid jsonType %s", matches[2])
+		return fmt.Errorf("parseResponseComment: invalid jsonType %s", jsonType)
 	}
 
 	if err != nil {
@@ -97,6 +93,38 @@ func (p *parser) parseResponseComment(pkgPath, pkgName string, operation *oas.Op
 
 	operation.Responses[status] = responseObject
 	return nil
+}
+
+func parseResponseCommentParts(comment string) (status, jsonType, goType, description string, ok bool) {
+	comment = strings.TrimSpace(comment)
+	fields := strings.Fields(comment)
+	if len(fields) == 0 {
+		return "", "", "", "", false
+	}
+
+	status = fields[0]
+	rest := strings.TrimSpace(comment[len(status):])
+	if rest == "" {
+		return status, "", "", "", true
+	}
+	if strings.HasPrefix(rest, "\"") {
+		return status, "", "", rest, true
+	}
+
+	jsonType = strings.Fields(rest)[0]
+	rest = strings.TrimSpace(rest[len(jsonType):])
+	if rest == "" {
+		return status, jsonType, "", "", true
+	}
+
+	if descriptionStart := strings.Index(rest, "\""); descriptionStart >= 0 {
+		goType = strings.TrimSpace(rest[:descriptionStart])
+		description = strings.TrimSpace(rest[descriptionStart:])
+	} else {
+		goType = strings.TrimSpace(rest)
+	}
+
+	return status, jsonType, goType, description, true
 }
 
 var genericPattern = regexp.MustCompile(`\{([^}]+)\}`)
@@ -152,7 +180,7 @@ func (p *parser) complexResponseObject(pkgPath, pkgName, typ string, responseObj
 		// 2. 遍历所有需要替换的字段，逐个更新
 		for fieldName, fieldType := range fieldMappings {
 			// 解析字段对应的嵌套类型 Schema
-			fieldSchema, err := p.ParseSchemaObject(pkgPath, pkgName, fieldType)
+			fieldSchema, err := p.ParseSchemaObject(pkgPath, pkgName, normalizeResponseGoType(fieldType))
 			if err != nil {
 				return fmt.Errorf("解析字段 %s 的类型 %s 失败: %v", fieldName, fieldType, err)
 			}
@@ -225,6 +253,15 @@ func (p *parser) complexResponseObject(pkgPath, pkgName, typ string, responseObj
 		}
 	}
 	return nil
+}
+
+func normalizeResponseGoType(typeName string) string {
+	typeName = strings.Join(strings.Fields(strings.TrimSpace(typeName)), "")
+	typeName = strings.TrimLeft(typeName, "*")
+	if strings.HasPrefix(typeName, "[]") {
+		return "[]" + strings.TrimLeft(typeName[2:], "*")
+	}
+	return typeName
 }
 
 func (p *parser) simpleResponseObject(jsonType string, responseObject *oas.ResponseObject) error {
