@@ -2,6 +2,7 @@ package operations
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/iancoleman/orderedmap"
@@ -58,44 +59,73 @@ func Test_ParseHeader(t *testing.T) {
 
 func TestParseParamComment_FormParam(t *testing.T) {
 	p := &parser{}
-	op := &oas.OperationObject{}
-
-	comment := "@Param file form ignored true \"Upload file\" \"/path/to/file\""
-
-	err := p.parseParamComment("example/pkg", "pkg", op, comment)
-	if err != nil {
-		t.Fatalf("Expected no error, got: %v", err)
+	tests := []struct {
+		name    string
+		comment string
+	}{
+		{
+			name:    "form file param with path example",
+			comment: "@Param file form ignored true \"Upload file\" \"/path/to/file\"",
+		},
 	}
-	if op.RequestBody == nil {
-		t.Error("Expected RequestBody to be set for form param")
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			op := &oas.OperationObject{}
+			err := p.parseParamComment("example/pkg", "pkg", op, test.comment)
+			if err != nil {
+				t.Fatalf("Expected no error, got: %v", err)
+			}
+			if op.RequestBody == nil {
+				t.Error("Expected RequestBody to be set for form param")
+			}
+		})
 	}
 }
 
 func TestParseParamComment_BodyParam(t *testing.T) {
-	mockSchema := new(MockSchemaParser)
-
-	p := &parser{
-		Parser: mockSchema,
+	tests := []struct {
+		name    string
+		comment string
+		typeRef string
+		desc    string
+	}{
+		{
+			name:    "body param with struct type",
+			comment: "@Param user body User true \"User info\"",
+			typeRef: "UserSchemaRef",
+			desc:    "User info",
+		},
+		{
+			name:    "body param with pointer type",
+			comment: "@Param profile body *Profile true \"Profile info\"",
+			typeRef: "ProfileSchemaRef",
+			desc:    "Profile info",
+		},
 	}
 
-	op := &oas.OperationObject{}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mockSchema := new(MockSchemaParser)
+			p := &parser{Parser: mockSchema}
+			op := &oas.OperationObject{}
 
-	comment := "@Param user body User true \"User info\""
+			mockSchema.On("RegisterType", "example/pkg", "pkg", strings.TrimPrefix(strings.TrimSpace(strings.Split(test.comment, " ")[3]), "*")).Return(test.typeRef, nil)
 
-	mockSchema.On("RegisterType", "example/pkg", "pkg", "User").Return("UserSchemaRef", nil)
+			err := p.parseParamComment("example/pkg", "pkg", op, test.comment)
+			if err != nil {
+				t.Fatalf("Expected no error, got: %v", err)
+			}
 
-	err := p.parseParamComment("example/pkg", "pkg", op, comment)
-	if err != nil {
-		t.Fatalf("Expected no error, got: %v", err)
+			if op.RequestBody == nil {
+				t.Error("Expected RequestBody to be set for body param")
+			}
+			require.NotNil(t, op.RequestBody.Content[oas.ContentTypeJson])
+			assert.Equal(t, test.desc, op.RequestBody.Content[oas.ContentTypeJson].Schema.Description)
+
+			mockSchema.AssertExpectations(t)
+		})
 	}
-
-	if op.RequestBody == nil {
-		t.Error("Expected RequestBody to be set for body param")
-	}
-	require.NotNil(t, op.RequestBody.Content[oas.ContentTypeJson])
-	assert.Equal(t, "User info", op.RequestBody.Content[oas.ContentTypeJson].Schema.Description)
-
-	mockSchema.AssertExpectations(t)
 }
 
 func TestParseParamComment_MapBodyParam(t *testing.T) {
@@ -383,4 +413,53 @@ func TestParseResponseComment_BasicInt32ArrayType(t *testing.T) {
 		}
 	}
 	mockSchema.AssertExpectations(t)
+}
+
+func TestParseResponseComment_TableDrivenCoverage(t *testing.T) {
+	tests := []struct {
+		name       string
+		comment    string
+		setupMock  func(*MockSchemaParser)
+		assertions func(*testing.T, *oas.ResponseObject)
+	}{
+		{
+			name:    "simple string response",
+			comment: `200 {string} string "ok"`,
+			assertions: func(t *testing.T, response *oas.ResponseObject) {
+				schema := response.Content[oas.ContentTypeJson].Schema
+				assert.Equal(t, "string", schema.Type)
+			},
+		},
+		{
+			name:    "object response with ref type",
+			comment: `200 {object} User "ok"`,
+			setupMock: func(m *MockSchemaParser) {
+				m.On("RegisterType", "example/pkg", "pkg", "User").Return("UserSchemaRef", nil)
+			},
+			assertions: func(t *testing.T, response *oas.ResponseObject) {
+				schema := response.Content[oas.ContentTypeJson].Schema
+				assert.Equal(t, "#/components/schemas/UserSchemaRef", schema.Ref)
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mockSchema := new(MockSchemaParser)
+			p := &parser{Parser: mockSchema}
+			op := &oas.OperationObject{Responses: oas.ResponsesObject{}}
+
+			if test.setupMock != nil {
+				test.setupMock(mockSchema)
+			}
+
+			err := p.parseResponseComment("example/pkg", "pkg", op, test.comment)
+			require.NoError(t, err)
+
+			response := op.Responses["200"]
+			require.NotNil(t, response)
+			test.assertions(t, response)
+			mockSchema.AssertExpectations(t)
+		})
+	}
 }
