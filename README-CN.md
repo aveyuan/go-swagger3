@@ -144,7 +144,7 @@ export PATH="$HOME/go/bin:$PATH"
 在 `go.mod` 所在模块目录执行：
 
 ```bash
-go-swagger3 --module-path . --output oas.json
+go-swagger3 --main-file-path main.go
 ```
 
 常用参数：

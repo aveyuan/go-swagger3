@@ -135,6 +135,19 @@
 											"description": "响应数据",
 											"$ref": "#/components/schemas/github.com.aveyuan.go-swagger3.test.ListDataRes"
 										},
+										"data.list": {
+											"type": "object",
+											"properties": {
+												"id": {
+													"type": "integer",
+													"description": "用户ID"
+												},
+												"name": {
+													"type": "string",
+													"description": "用户名"
+												}
+											}
+										},
 										"data.page": {
 											"type": "object",
 											"properties": {
@@ -149,19 +162,6 @@
 												"total": {
 													"type": "integer",
 													"description": "总记录数"
-												}
-											}
-										},
-										"data.list": {
-											"type": "object",
-											"properties": {
-												"id": {
-													"type": "integer",
-													"description": "用户ID"
-												},
-												"name": {
-													"type": "string",
-													"description": "用户名"
 												}
 											}
 										}
