@@ -132,18 +132,10 @@
 										},
 										"data": {
 											"type": "object",
-											"properties": {
-												"id": {
-													"type": "integer",
-													"description": "用户ID"
-												},
-												"name": {
-													"type": "string",
-													"description": "用户名"
-												}
-											}
+											"description": "响应数据",
+											"$ref": "#/components/schemas/github.com.aveyuan.go-swagger3.test.ListDataRes"
 										},
-										"page": {
+										"data.page": {
 											"type": "object",
 											"properties": {
 												"current": {
@@ -157,6 +149,19 @@
 												"total": {
 													"type": "integer",
 													"description": "总记录数"
+												}
+											}
+										},
+										"data.list": {
+											"type": "object",
+											"properties": {
+												"id": {
+													"type": "integer",
+													"description": "用户ID"
+												},
+												"name": {
+													"type": "string",
+													"description": "用户名"
 												}
 											}
 										}
@@ -684,6 +689,24 @@
 					"data": {
 						"type": "object",
 						"description": "响应数据"
+					}
+				}
+			},
+			"github.com.aveyuan.go-swagger3.test.DataResPage": {
+				"type": "object",
+				"properties": {
+					"code": {
+						"type": "integer",
+						"description": "业务状态码"
+					},
+					"msg": {
+						"type": "string",
+						"description": "提示信息"
+					},
+					"data": {
+						"type": "object",
+						"description": "响应数据",
+						"$ref": "#/components/schemas/github.com.aveyuan.go-swagger3.test.ListDataRes"
 					}
 				}
 			},

@@ -12,7 +12,7 @@ func ListUser() {
 
 // @Title 获取用户列表2
 // @Param . query PageQuery true "分页"
-// @Success 200 object DataRes{data=ListUserResp,page=Page} "返回结果"
+// @Success 200 object DataResPage{data.list=ListUserResp,data.page=Page} "返回结果"
 // @Tag v1.3.9
 // @Route /api/list_user2 [get]
 func GetUser() {

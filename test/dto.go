@@ -39,19 +39,25 @@ type DeleteUserReq struct {
 }
 
 type PageQuery struct {
-	Page     int    `json:"page" dc:"页码"`
-	Limit    int    `json:"limit" dc:"每页数量"`
-	Keyword  string `json:"keyword" dc:"关键字"`
-	Role     string `json:"role" dc:"角色"`
-	Status   int    `json:"status" dc:"状态"`
-	SortBy   string `json:"sort_by" dc:"排序字段"`
-	Order    string `json:"order" dc:"排序方向"`
+	Page    int    `json:"page" dc:"页码"`
+	Limit   int    `json:"limit" dc:"每页数量"`
+	Keyword string `json:"keyword" dc:"关键字"`
+	Role    string `json:"role" dc:"角色"`
+	Status  int    `json:"status" dc:"状态"`
+	SortBy  string `json:"sort_by" dc:"排序字段"`
+	Order   string `json:"order" dc:"排序方向"`
 }
 
 type DataRes struct {
 	Code int         `json:"code" dc:"业务状态码"`
 	Msg  string      `json:"msg" dc:"提示信息"`
 	Data interface{} `json:"data" dc:"响应数据"`
+}
+
+type DataResPage struct {
+	Code int         `json:"code" dc:"业务状态码"`
+	Msg  string      `json:"msg" dc:"提示信息"`
+	Data ListDataRes `json:"data" dc:"响应数据"`
 }
 
 type ListDataRes struct {
