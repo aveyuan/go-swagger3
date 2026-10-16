@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"github.com/aveyuan/go-swagger3/parser/utils"
 	"os"
+	"os/exec"
 	"os/user"
 	"path/filepath"
+	"strings"
 )
 
 func (p *parser) verifyAndSetPaths() error {
@@ -61,28 +63,50 @@ func (p *parser) setHandlerPath() error {
 }
 
 func (p *parser) setGoModCachePath() error {
+	candidates := goModCacheCandidates()
+	for _, path := range candidates {
+		info, err := os.Stat(path)
+		if err != nil || !info.IsDir() {
+			continue
+		}
+		p.GoModCachePath = path
+		p.Debugf("go module cache path: %s", p.GoModCachePath)
+		return nil
+	}
+	return fmt.Errorf("cannot find go module cache path, tried: %s. please make sure go modules are downloaded (go mod download), or set the GOMODCACHE environment variable to specify the path manually", strings.Join(candidates, ", "))
+}
+
+// goModCacheCandidates returns possible go module cache paths in priority order:
+//  1. output of `go env GOMODCACHE` (the actual value configured by the go toolchain,
+//     which respects GOMODCACHE env and go env -w overrides)
+//  2. GOMODCACHE environment variable
+//  3. $GOPATH/pkg/mod
+//  4. $HOME/go/pkg/mod
+func goModCacheCandidates() []string {
+	var candidates []string
+	seen := make(map[string]bool)
+	add := func(path string) {
+		if path != "" && !seen[path] {
+			seen[path] = true
+			candidates = append(candidates, path)
+		}
+	}
+
+	if out, err := exec.Command("go", "env", "GOMODCACHE").Output(); err == nil {
+		add(strings.TrimSpace(string(out)))
+	}
+	add(os.Getenv("GOMODCACHE"))
+
 	goPath := os.Getenv("GOPATH")
 	if goPath == "" {
-		current, err := user.Current()
-		if err != nil {
-			return fmt.Errorf("cannot get current user: %s", err)
+		if current, err := user.Current(); err == nil {
+			goPath = filepath.Join(current.HomeDir, "go")
 		}
-		goPath = filepath.Join(current.HomeDir, "go")
 	}
-	goModCachePath := filepath.Join(goPath, "pkg", "mod")
-	goModCacheInfo, err := os.Stat(goModCachePath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return err
-		}
-		return fmt.Errorf("cannot get information of %s: %s", goModCachePath, err)
+	if goPath != "" {
+		add(filepath.Join(goPath, "pkg", "mod"))
 	}
-	if !goModCacheInfo.IsDir() {
-		return fmt.Errorf("%s should be a directory", goModCachePath)
-	}
-	p.GoModCachePath = goModCachePath
-	p.Debugf("go module cache path: %s", p.GoModCachePath)
-	return nil
+	return candidates
 }
 
 func (p *parser) getModuleNameFromGoModFile() error {
