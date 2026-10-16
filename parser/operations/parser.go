@@ -80,11 +80,21 @@ func (p *parser) Parse(pkgPath, pkgName string, astComments []*ast.Comment) erro
 	}
 
 	// Second pass: now parse everything including schemas (tag check passed)
+	// @Description 支持多行：紧随其后的非注解行（不以 @ 开头）并入描述，遇到下一个注解行结束
+	inDescription := false
 	for _, astComment := range astComments {
 		comment := strings.TrimSpace(strings.TrimLeft(astComment.Text, "/"))
 		if len(comment) == 0 {
 			continue
 		}
+
+		attribute := strings.Fields(comment)[0]
+		isDescriptionLine := strings.EqualFold(attribute, "@description")
+		if inDescription && !strings.HasPrefix(attribute, "@") && !isDescriptionLine {
+			operation.Description = strings.Join([]string{operation.Description, comment}, "\n")
+			continue
+		}
+		inDescription = isDescriptionLine
 
 		if err := p.parseOperationFromComment(pkgPath, pkgName, comment, operation); err != nil {
 			return err
